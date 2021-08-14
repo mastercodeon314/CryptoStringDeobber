@@ -88,5 +88,15 @@
   <ItemGroup>
     <None Include="App.config" />
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\dnlib-master\src\dnlib.csproj">
+      <Project>{269b8f41-677e-4fb7-b4c9-7e2334f3e30b}</Project>
+      <Name>dnlib</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\dnpatch-master\dnpatch\dnpatch.csproj">
+      <Project>{14ca7a28-7fa8-40a0-abc6-81e9f36318de}</Project>
+      <Name>dnpatch</Name>
+    </ProjectReference>
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
