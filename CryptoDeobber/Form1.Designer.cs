@@ -35,6 +35,7 @@ namespace CryptoDeobber
             this.deobBtn = new System.Windows.Forms.Button();
             this.statusLbl = new System.Windows.Forms.Label();
             this.junkCodeBox = new System.Windows.Forms.CheckBox();
+            this.fixControlNamesBox = new System.Windows.Forms.CheckBox();
             this.SuspendLayout();
             // 
             // filePathBox
@@ -94,11 +95,22 @@ namespace CryptoDeobber
             this.junkCodeBox.UseVisualStyleBackColor = true;
             this.junkCodeBox.CheckedChanged += new System.EventHandler(this.junkCodeBox_CheckedChanged);
             // 
+            // fixControlNamesBox
+            // 
+            this.fixControlNamesBox.AutoSize = true;
+            this.fixControlNamesBox.Location = new System.Drawing.Point(230, 117);
+            this.fixControlNamesBox.Name = "fixControlNamesBox";
+            this.fixControlNamesBox.Size = new System.Drawing.Size(156, 17);
+            this.fixControlNamesBox.TabIndex = 6;
+            this.fixControlNamesBox.Text = "Fix WinForm Control Names";
+            this.fixControlNamesBox.UseVisualStyleBackColor = true;
+            // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(578, 148);
+            this.Controls.Add(this.fixControlNamesBox);
             this.Controls.Add(this.junkCodeBox);
             this.Controls.Add(this.statusLbl);
             this.Controls.Add(this.deobBtn);
@@ -121,6 +133,7 @@ namespace CryptoDeobber
         private System.Windows.Forms.Button deobBtn;
         private System.Windows.Forms.Label statusLbl;
         private System.Windows.Forms.CheckBox junkCodeBox;
+        private System.Windows.Forms.CheckBox fixControlNamesBox;
     }
 }
 

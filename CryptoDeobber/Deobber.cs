@@ -80,7 +80,8 @@ namespace CryptoDeobber
         public int timesSaved = 0;
         private List<Target> patchedTargets = null;
 
-        public bool RemoveJunkCode = true;
+        public bool RemoveJunkCode = false;
+        public bool FixFormControlNames = false;
 
 
 
@@ -94,7 +95,7 @@ namespace CryptoDeobber
             this.Init();
         }
 
-        public Deobber(string filePath, bool removeJunkCode)
+        public Deobber(string filePath, bool removeJunkCode, bool fixControlNames)
         {
             this.modCtx = ModuleDef.CreateModuleContext();
             exeASM = Assembly.LoadFile(filePath);
@@ -103,6 +104,7 @@ namespace CryptoDeobber
             this.fileLoc = exeASM.Location.Replace(".exe", ".cleaned.exe");
 
             this.RemoveJunkCode = removeJunkCode;
+            this.FixFormControlNames = fixControlNames;
 
             this.Init();
         }
@@ -313,7 +315,7 @@ namespace CryptoDeobber
                 {
                     if (t.Attributes.HasFlag(TypeAttributes.NotPublic))
                     {
-                        if (Utils.hasFields(t, decsStringsFields, true) == true)
+                        //if (Utils.hasFields(t, decsStringsFields, true) == true)
                         {
                             if (Utils.hasMethods(t, decsStringsMethods, true) == true)
                             {
@@ -634,7 +636,7 @@ namespace CryptoDeobber
             FindStringDecs(asm);
             FindConstantsDecs(asm);
 
-            if (checkDecsFound() == false) return;
+            //if (checkDecsFound() == false) return;
 
             List<TypeDef> alltypes = asm.GetTypes().ToList();
             List<TypeDef> types = new List<TypeDef>();
@@ -703,7 +705,7 @@ namespace CryptoDeobber
                         continue;
                     }
 
-                    if (type.BaseType.FullName == formBaseTypeRef.FullName)
+                    if (type.BaseType.FullName == formBaseTypeRef.FullName && this.FixFormControlNames == true)
                     {
                         Type reflectionFormType = this.exeASM.GetType(type.ReflectionFullName);
 
@@ -985,8 +987,9 @@ namespace CryptoDeobber
                                     {
                                         case "System.String":
                                             {
-                                                try
-                                                {
+/*                                                try
+                                                {*/
+                                                    if (decsStringsSig == null) continue;
                                                     if (decsStringsSig.Equals(new MethodSignature(obbingCall)) == true && Utils.typesEqual(obbingCall.DeclaringType, decsStringsMethod.DeclaringType) == true)
                                                     {
                                                         patchingNeeded = true;
@@ -1020,17 +1023,18 @@ namespace CryptoDeobber
                                                         x = x + 1;
                                                         continue;
                                                     }
-                                                }
+ /*                                               }
                                                 catch (Exception)
                                                 {
                                                     Debugger.Break();
-                                                }
+                                                }*/
                                                 break;
                                             }
                                         case "System.Int32":
                                             {
                                                 try
                                                 {
+                                                    if (decsIntSig == null) continue;
                                                     if (decsIntSig.Equals(new MethodSignature(obbingCall)) == true && Utils.typesEqual(obbingCall.DeclaringType, decsIntMethod.DeclaringType) == true)
                                                     {
                                                         patchingNeeded = true;
@@ -1086,6 +1090,7 @@ namespace CryptoDeobber
                                             {
                                                 try
                                                 {
+                                                    if (decsLongSig == null) continue;
                                                     if (decsLongSig.Equals(new MethodSignature(obbingCall)) == true && Utils.typesEqual(obbingCall.DeclaringType, decsLongMethod.DeclaringType) == true)
                                                     {
                                                         patchingNeeded = true;
@@ -1130,6 +1135,7 @@ namespace CryptoDeobber
                                             {
                                                 try
                                                 {
+                                                    if (decsFloatSig == null) continue;
                                                     if (decsFloatSig.Equals(new MethodSignature(obbingCall)) == true && Utils.typesEqual(obbingCall.DeclaringType, decsFloatMethod.DeclaringType) == true)
                                                     {
                                                         patchingNeeded = true;
@@ -1174,6 +1180,7 @@ namespace CryptoDeobber
                                             {
                                                 try
                                                 {
+                                                    if (decsDoubleSig == null) continue;
                                                     if (decsDoubleSig.Equals(new MethodSignature(obbingCall)) == true && Utils.typesEqual(obbingCall.DeclaringType, decsDoubleMethod.DeclaringType) == true)
                                                     {
                                                         patchingNeeded = true;
