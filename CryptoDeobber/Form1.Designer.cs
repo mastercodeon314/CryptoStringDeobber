@@ -34,6 +34,7 @@ namespace CryptoDeobber
             this.filePathLbl = new System.Windows.Forms.Label();
             this.deobBtn = new System.Windows.Forms.Button();
             this.statusLbl = new System.Windows.Forms.Label();
+            this.junkCodeBox = new System.Windows.Forms.CheckBox();
             this.SuspendLayout();
             // 
             // filePathBox
@@ -82,11 +83,23 @@ namespace CryptoDeobber
             this.statusLbl.TabIndex = 4;
             this.statusLbl.Text = "Status: ";
             // 
+            // junkCodeBox
+            // 
+            this.junkCodeBox.AutoSize = true;
+            this.junkCodeBox.Location = new System.Drawing.Point(104, 117);
+            this.junkCodeBox.Name = "junkCodeBox";
+            this.junkCodeBox.Size = new System.Drawing.Size(120, 17);
+            this.junkCodeBox.TabIndex = 5;
+            this.junkCodeBox.Text = "Remove Junk Code";
+            this.junkCodeBox.UseVisualStyleBackColor = true;
+            this.junkCodeBox.CheckedChanged += new System.EventHandler(this.junkCodeBox_CheckedChanged);
+            // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(578, 148);
+            this.Controls.Add(this.junkCodeBox);
             this.Controls.Add(this.statusLbl);
             this.Controls.Add(this.deobBtn);
             this.Controls.Add(this.filePathLbl);
@@ -107,6 +120,7 @@ namespace CryptoDeobber
         private System.Windows.Forms.Label filePathLbl;
         private System.Windows.Forms.Button deobBtn;
         private System.Windows.Forms.Label statusLbl;
+        private System.Windows.Forms.CheckBox junkCodeBox;
     }
 }
 

@@ -80,6 +80,8 @@ namespace CryptoDeobber
         public int timesSaved = 0;
         private List<Target> patchedTargets = null;
 
+        public bool RemoveJunkCode = true;
+
 
 
         public Deobber()
@@ -92,13 +94,15 @@ namespace CryptoDeobber
             this.Init();
         }
 
-        public Deobber(string filePath)
+        public Deobber(string filePath, bool removeJunkCode)
         {
             this.modCtx = ModuleDef.CreateModuleContext();
             exeASM = Assembly.LoadFile(filePath);
             Module[] modules = exeASM.GetModules();
             this.asm = ModuleDefMD.Load(modules[0], this.modCtx);
             this.fileLoc = exeASM.Location.Replace(".exe", ".cleaned.exe");
+
+            this.RemoveJunkCode = removeJunkCode;
 
             this.Init();
         }
@@ -450,9 +454,8 @@ namespace CryptoDeobber
             return result;
         }
 
-        private Instruction[] removeJunkCode(Instruction[] opCodes)
+        private Instruction[] removeJunkCode(Instruction[] opCodes, MethodDef operatingMethod)
         {
-
             if (opCodes.Length == 2)
             {
                 if (opCodes[0].OpCode == OpCodes.Ldtoken && opCodes[1].OpCode == OpCodes.Ret)
@@ -483,13 +486,47 @@ namespace CryptoDeobber
                     }
                 }
 
-                if (ins.OpCode == OpCodes.Ldtoken)
+                if (ins.OpCode == OpCodes.Ldtoken && i - 2 >= 0)
                 {
-                    if (Utils.checkBR(opCodes[i - 1]))
+                    TypeDef m = null;
+                    MethodDef m2 = null;
+
+                    try
                     {
-                        if (opCodes[i - 2].OpCode == OpCodes.Ldc_I4_1 && opCodes[i + 1].OpCode == OpCodes.Pop)
+                        m = ((ITypeDefOrRef)ins.Operand).ResolveTypeDef();
+                    }
+                    catch (Exception)
+                    {
+                        m2 = ((IMethod)ins.Operand).ResolveMethodDef();
+                    }
+
+                    if (m != null)
+                    {
+                        if (m.MDToken.Equals(operatingMethod.MDToken))
                         {
-                            ldtokenJunkStartIndices.AddRange(new int[] { i - 2, i - 1, i, i + 1 });
+                            if (Utils.checkBR(opCodes[i - 1]))
+                            {
+                                if (opCodes[i - 2].OpCode == OpCodes.Ldc_I4_1 && opCodes[i + 1].OpCode == OpCodes.Pop)
+                                {
+                                    ldtokenJunkStartIndices.AddRange(new int[] { i - 2, i - 1, i, i + 1 });
+                                }
+                            }
+                        }
+                    }
+                    else
+                    {
+                        if (m2 != null)
+                        {
+                            if (m2.MDToken.Equals(operatingMethod.MDToken))
+                            {
+                                if (Utils.checkBR(opCodes[i - 1]))
+                                {
+                                    if (opCodes[i - 2].OpCode == OpCodes.Ldc_I4_1 && opCodes[i + 1].OpCode == OpCodes.Pop)
+                                    {
+                                        ldtokenJunkStartIndices.AddRange(new int[] { i - 2, i - 1, i, i + 1 });
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -865,9 +902,11 @@ namespace CryptoDeobber
 
                     if (opCodes == null) continue;
 
+                    if (this.RemoveJunkCode == true)
+                    {
+                        opCodes = removeJunkCode(opCodes, patchingTargetMethod);
+                    }
                     
-
-                    opCodes = removeJunkCode(opCodes);
 
                     /*                   }
                                        catch (Exception)

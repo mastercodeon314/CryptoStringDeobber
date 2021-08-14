@@ -13,6 +13,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "dnpatch", "dnpatch-master\d
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "dnlib", "dnlib-master\src\dnlib.csproj", "{269B8F41-677E-4FB7-B4C9-7E2334F3E30B}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CrackMe", "CrackMe\CrackMe.csproj", "{32C4A35C-2B1E-4C3B-B967-1FBA6FF88FCD}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -39,6 +41,10 @@ Global
 		{269B8F41-677E-4FB7-B4C9-7E2334F3E30B}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{269B8F41-677E-4FB7-B4C9-7E2334F3E30B}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{269B8F41-677E-4FB7-B4C9-7E2334F3E30B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{32C4A35C-2B1E-4C3B-B967-1FBA6FF88FCD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{32C4A35C-2B1E-4C3B-B967-1FBA6FF88FCD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{32C4A35C-2B1E-4C3B-B967-1FBA6FF88FCD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{32C4A35C-2B1E-4C3B-B967-1FBA6FF88FCD}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

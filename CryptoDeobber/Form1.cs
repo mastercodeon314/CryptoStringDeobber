@@ -35,7 +35,7 @@ namespace CryptoDeobber
 
         private void cryptoDeob(string noDelegateFilePath)
         {
-            Deobber stringDeob = new Deobber(noDelegateFilePath);
+            Deobber stringDeob = new Deobber(noDelegateFilePath, this.junkCodeBox.Checked);
             //Deobber stringDeob = new Deobber(filePath);
             stringDeob.Patch();
 
@@ -95,6 +95,11 @@ namespace CryptoDeobber
                 }
             }
            
+        }
+
+        private void junkCodeBox_CheckedChanged(object sender, EventArgs e)
+        {
+
         }
     }
 }
