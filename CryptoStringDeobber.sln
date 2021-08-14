@@ -1,0 +1,49 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.31410.357
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CryptoStringDeobber", "CryptoStringDeobber\CryptoStringDeobber.csproj", "{E7F3DE3D-86C7-4148-AC0C-E9C80DD65914}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "dnlib", "..\..\..\..\..\dnlib-master\src\dnlib.csproj", "{3B3E1A74-4F23-443C-90D0-81C5EA0ECE4F}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "dnpatch", "..\..\..\..\..\dnpatch-master\dnpatch\dnpatch.csproj", "{14CA7A28-7FA8-40A0-ABC6-81E9F36318DE}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ResHCK", "ResHCK\ResHCK.csproj", "{899036A3-0CBB-4B0F-A81B-2AF3E9A078E9}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CryptoDeobber", "CryptoDeobber\CryptoDeobber.csproj", "{37FCCC92-938C-4E1F-A0E7-F9AE4E93A949}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{E7F3DE3D-86C7-4148-AC0C-E9C80DD65914}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E7F3DE3D-86C7-4148-AC0C-E9C80DD65914}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E7F3DE3D-86C7-4148-AC0C-E9C80DD65914}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E7F3DE3D-86C7-4148-AC0C-E9C80DD65914}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3B3E1A74-4F23-443C-90D0-81C5EA0ECE4F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3B3E1A74-4F23-443C-90D0-81C5EA0ECE4F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3B3E1A74-4F23-443C-90D0-81C5EA0ECE4F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3B3E1A74-4F23-443C-90D0-81C5EA0ECE4F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{14CA7A28-7FA8-40A0-ABC6-81E9F36318DE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{14CA7A28-7FA8-40A0-ABC6-81E9F36318DE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{14CA7A28-7FA8-40A0-ABC6-81E9F36318DE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{14CA7A28-7FA8-40A0-ABC6-81E9F36318DE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{899036A3-0CBB-4B0F-A81B-2AF3E9A078E9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{899036A3-0CBB-4B0F-A81B-2AF3E9A078E9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{899036A3-0CBB-4B0F-A81B-2AF3E9A078E9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{899036A3-0CBB-4B0F-A81B-2AF3E9A078E9}.Release|Any CPU.Build.0 = Release|Any CPU
+		{37FCCC92-938C-4E1F-A0E7-F9AE4E93A949}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{37FCCC92-938C-4E1F-A0E7-F9AE4E93A949}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{37FCCC92-938C-4E1F-A0E7-F9AE4E93A949}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{37FCCC92-938C-4E1F-A0E7-F9AE4E93A949}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {5FB4A801-FB5B-4B08-B6A2-6290B0047464}
+	EndGlobalSection
+EndGlobal
