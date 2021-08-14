@@ -60,27 +60,28 @@ namespace CryptoDeobber
             this.FullName = m.FullName;
             this.token = m.MDToken;
         }
-        
+
         public MethodSignature(ITypeDefOrRef returnType, ITypeDefOrRef[] argTypes)
         {
             this.ReturnType = returnType;
             this.Parameters = argTypes;
         }
-        
+
         public MethodSignature(ITypeDefOrRef returnType)
         {
             this.ReturnType = returnType;
             this.Parameters = null;
         }
-        
+
         public MethodSignature(ITypeDefOrRef returnType, ITypeDefOrRef argType)
         {
             this.ReturnType = returnType;
-            this.Parameters = new ITypeDefOrRef[]{ argType };
+            this.Parameters = new ITypeDefOrRef[] { argType };
         }
 
         public static bool Equals(MethodSignature a, MethodSignature b)
         {
+            
             bool res = false;
             try
             {
@@ -92,11 +93,17 @@ namespace CryptoDeobber
 
                     if (res == true)
                     {
-                        for (int i = 0; i < a.ParmCount; i++)
+                        if (a.Parameters != null && b.Parameters != null)
                         {
-                            res = Utils.typesEqual(a.Parameters[i], b.Parameters[i]);
+                            if (a.Parameters.Length == b.Parameters.Length)
+                            {
+                                for (int i = 0; i < a.ParmCount; i++)
+                                {
+                                    res = Utils.typesEqual(a.Parameters[i], b.Parameters[i]);
 
-                            if (res == false) return false;
+                                    if (res == false) return false;
+                                }
+                            }
                         }
                     }
 
@@ -114,18 +121,27 @@ namespace CryptoDeobber
 
             return res;
         }
-        
+
 
         public override bool Equals(object obj)
         {
             bool res = false;
             try
             {
-                MethodSignature m = (MethodSignature) obj;
+                MethodSignature m = (MethodSignature)obj;
 
                 if (m != null)
                 {
-                    res = Utils.typesEqual(this.ReturnType, m.ReturnType);
+                    try
+                    {
+                        res = Utils.typesEqual(this.ReturnType, m.ReturnType);
+
+                    }
+                    catch (Exception ex)
+                    {
+                        Debugger.Break();
+                    }
+                   
 
                     if (res == true)
                     {
@@ -133,12 +149,28 @@ namespace CryptoDeobber
 
                         if (res == true)
                         {
-                            for (int i = 0; i < this.ParmCount; i++)
+                            if (this.Parameters != null && m.Parameters != null)
                             {
-                                res = Utils.typesEqual(this.Parameters[i], m.Parameters[i]);
+                                if (this.Parameters.Length == m.Parameters.Length)
+                                {
+                                    for (int i = 0; i < this.ParmCount; i++)
+                                    {
+                                        try
+                                        {
+                                            res = Utils.typesEqual(this.Parameters[i], m.Parameters[i]);
 
-                                if (res == false) return false;
+                                        }
+                                        catch (Exception ex)
+                                        {
+                                            Debugger.Break();
+                                        }
+                                        
+
+                                        if (res == false) return false;
+                                    }
+                                }
                             }
+                            
                         }
 
                         if (res == true && this.FullName != "" && this.token != null && m.FullName != "" && m.token != null)
@@ -156,7 +188,7 @@ namespace CryptoDeobber
 
             return res;
         }
-        
-       
+
+
     }
 }

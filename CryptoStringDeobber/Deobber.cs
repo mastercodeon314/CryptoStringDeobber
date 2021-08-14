@@ -58,6 +58,7 @@ namespace CryptoDeobber
         private Patcher dnPatcher;
         private ModuleContext modCtx = null;
         private ModuleDefMD asm = null;
+        private Assembly exeASM = null;
         private string fileLoc = "";
         private MethodDef decsStringsMethod = null;
         private MethodSignature decsStringsSig = null;
@@ -79,29 +80,40 @@ namespace CryptoDeobber
         public int timesSaved = 0;
         private List<Target> patchedTargets = null;
 
+        public bool RemoveJunkCode = false;
+        public bool FixFormControlNames = false;
+
+
+
         public Deobber()
         {
             this.modCtx = ModuleDef.CreateModuleContext();
-            Assembly exeASM = Assembly.GetExecutingAssembly();
+            exeASM = Assembly.GetExecutingAssembly();
             Module[] modules = exeASM.GetModules();
             this.asm = ModuleDefMD.Load(modules[0], this.modCtx);
             this.fileLoc = exeASM.Location.Replace(".exe", ".cleaned.exe");
             this.Init();
         }
 
-        public Deobber(string filePath)
+        public Deobber(string filePath, bool removeJunkCode, bool fixControlNames)
         {
             this.modCtx = ModuleDef.CreateModuleContext();
-            Assembly exeASM = Assembly.LoadFrom(filePath);
+            exeASM = Assembly.LoadFile(filePath);
             Module[] modules = exeASM.GetModules();
             this.asm = ModuleDefMD.Load(modules[0], this.modCtx);
             this.fileLoc = exeASM.Location.Replace(".exe", ".cleaned.exe");
+
+            this.RemoveJunkCode = removeJunkCode;
+            this.FixFormControlNames = fixControlNames;
+
             this.Init();
         }
 
 
         private void Init()
         {
+            //Environment.CurrentDirectory = Path.GetDirectoryName(exeASM.Location);
+
             this.dnPatcher = new Patcher(asm, true);
             decsStringsSig = new MethodSignature(Utils.reflectionType_To_dnType(typeof(string), this.asm, this.modCtx), Utils.reflectionType_To_dnType(typeof(int), this.asm, this.modCtx));
             decsIntSig = new MethodSignature(Utils.reflectionType_To_dnType(typeof(int), this.asm, this.modCtx), Utils.reflectionType_To_dnType(typeof(int), this.asm, this.modCtx));
@@ -109,6 +121,68 @@ namespace CryptoDeobber
             decsFloatSig = new MethodSignature(Utils.reflectionType_To_dnType(typeof(float), this.asm, this.modCtx), Utils.reflectionType_To_dnType(typeof(int), this.asm, this.modCtx));
             decsDoubleSig = new MethodSignature(Utils.reflectionType_To_dnType(typeof(double), this.asm, this.modCtx), Utils.reflectionType_To_dnType(typeof(int), this.asm, this.modCtx));
             decsArraySig = new MethodSignature(Utils.reflectionType_To_dnType(typeof(void), this.asm, this.modCtx), new ITypeDefOrRef[] { Utils.reflectionType_To_dnType(typeof(Array), this.asm, this.modCtx), Utils.reflectionType_To_dnType(typeof(int), this.asm, this.modCtx) });
+
+
+            //The AssemblyResolve event is called when the common language runtime tries to bind to the assembly and fails.
+            AppDomain currentDomain = AppDomain.CurrentDomain;
+            currentDomain.AssemblyResolve += new ResolveEventHandler(currentDomain_AssemblyResolve);
+
+            AssemblyName[] names = exeASM.GetReferencedAssemblies();
+
+            foreach (var asmName in names)
+            {
+                if (asmName.CodeBase == null)
+                {
+                    string codeBase = Path.GetDirectoryName(exeASM.Location) + @"\" + asmName.Name + ".dll";
+                    if (File.Exists(codeBase))
+                    {
+                        asmName.CodeBase = codeBase;
+
+                    }
+
+                }
+                Assembly aa = AppDomain.CurrentDomain.Load(asmName);
+            }
+        }
+
+        Assembly currentDomain_AssemblyResolve(object sender, ResolveEventArgs args)
+        {
+            //This handler is called only when the common language runtime tries to bind to the assembly and fails.
+
+            //Retrieve the list of referenced assemblies in an array of AssemblyName.
+            Assembly MyAssembly, objExecutingAssemblies;
+            string strTempAssmbPath = "";
+
+            AssemblyName[] arrReferencedAssmbNames = exeASM.GetReferencedAssemblies();
+
+            //Loop through the array of referenced assembly names.
+            foreach (AssemblyName strAssmbName in arrReferencedAssmbNames)
+            {
+                //Check for the assembly names that have raised the "AssemblyResolve" event.
+                if (strAssmbName.FullName.Substring(0, strAssmbName.FullName.IndexOf(",")) == args.Name.Substring(0, args.Name.IndexOf(",")))
+                {
+
+                    string codeBase = Path.GetDirectoryName(exeASM.Location) + @"\" + strAssmbName.Name + ".dll";
+                    if (File.Exists(codeBase))
+                    {
+                        strAssmbName.CodeBase = codeBase;
+                        strTempAssmbPath = codeBase;
+                        break;
+                    }
+                }
+
+            }
+
+            if (strTempAssmbPath != "")
+            {
+                //Load the assembly from the specified path.
+                MyAssembly = Assembly.LoadFrom(strTempAssmbPath);
+
+                //Return the loaded assembly.
+                return MyAssembly;
+            }
+
+            return null;
         }
 
         private void SavePatch(Target tar, Instruction[] opCodes)
@@ -169,6 +243,8 @@ namespace CryptoDeobber
         private void FindConstantsDecs(ModuleDefMD asmModule)
         {
             List<TypeDef> types = asmModule.GetTypes().ToList();
+
+
 
             Dictionary<ITypeDefOrRef, int> decsConstantsFields = new Dictionary<ITypeDefOrRef, int>()
             {
@@ -233,15 +309,13 @@ namespace CryptoDeobber
                 [decsDoubleSig] = 1,
             };
 
-
-
             foreach (TypeDef t in types)
             {
                 if (Utils.hasStaticConstructor(t) == true && t.Methods.Count > 0)
                 {
                     if (t.Attributes.HasFlag(TypeAttributes.NotPublic))
                     {
-                        if (Utils.hasFields(t, decsStringsFields, true) == true)
+                        //if (Utils.hasFields(t, decsStringsFields, true) == true)
                         {
                             if (Utils.hasMethods(t, decsStringsMethods, true) == true)
                             {
@@ -285,19 +359,434 @@ namespace CryptoDeobber
             return result;
         }
 
+        private bool isToolStripItem(FieldInfo inf)
+        {
+            bool result = false;
+
+            string toolStripItemFullName = typeof(System.Windows.Forms.ToolStripItem).FullName;
+
+            Type baseType = null;
+
+            if (inf.FieldType.Module.FullyQualifiedName != typeof(System.Windows.Forms.Control).Module.FullyQualifiedName) return false;
+
+            try
+            {
+                baseType = inf.FieldType.BaseType;
+            }
+            catch (Exception)
+            {
+
+            }
+
+            if (baseType == null) return false;
+
+            if (baseType.FullName == toolStripItemFullName)
+            {
+                return true;
+            }
+            else
+            {
+                while ( baseType.FullName != toolStripItemFullName)
+                {
+                    if (baseType.BaseType == null)
+                    {
+                        return false;
+                    }
+                    else
+                    {
+                        baseType = baseType.BaseType;
+                    }
+                }
+
+                if (baseType.FullName == toolStripItemFullName)
+                {
+                    return true;
+                }
+            }
+
+            return result;
+        }
+
+        private bool isControlField(FieldInfo inf)
+        {
+            bool result = false;
+
+            string controlFullName = typeof(System.Windows.Forms.Control).FullName;
+            string toolStripItemFullName = typeof(System.Windows.Forms.ToolStripItem).FullName;
+
+            Type baseType = null;
+
+            if (inf.FieldType.Module.FullyQualifiedName != typeof(System.Windows.Forms.Control).Module.FullyQualifiedName) return false;
+
+            try
+            {
+                baseType = inf.FieldType.BaseType;
+            }
+            catch (Exception)
+            {
+
+            }
+
+            if (baseType == null) return false;
+
+            if (baseType.FullName == controlFullName)
+            {
+                return true;
+            }
+            else
+            {
+                while (baseType.FullName != controlFullName)
+                {
+                    if (baseType.BaseType == null)
+                    {
+                        return false;
+                    }
+                    else
+                    {
+                        baseType = baseType.BaseType;
+                    }
+                }
+
+                if (baseType.FullName == controlFullName)
+                {
+                    return true;
+                }
+            }
+
+            return result;
+        }
+
+        private Instruction[] removeJunkCode(Instruction[] opCodes, MethodDef operatingMethod)
+        {
+            if (opCodes.Length == 2)
+            {
+                if (opCodes[0].OpCode == OpCodes.Ldtoken && opCodes[1].OpCode == OpCodes.Ret)
+                {
+                    return opCodes;
+                }
+            }
+
+            List<Instruction> listCopy = opCodes.ToList();
+
+            List<int> switchJunkStartIndices = new List<int>();
+            List<int> ldtokenJunkStartIndices = new List<int>();
+
+            List<int> RuntimeHelpers_InitializeArray_JunkIndices = new List<int>();
+
+            for (int i = 0; i < opCodes.Length; i++)
+            {
+                Instruction ins = opCodes[i];
+
+                if (ins.OpCode == OpCodes.Switch)
+                {
+                    Instruction[] opp = (Instruction[])ins.Operand;
+
+                    if (opCodes[i - 1].Equals(opp[0]))
+                    {
+                        // junk code
+                        switchJunkStartIndices.AddRange(new int[] { i - 1, i });
+                    }
+                }
+
+                if (ins.OpCode == OpCodes.Ldtoken && i - 2 >= 0)
+                {
+                    TypeDef m = null;
+                    MethodDef m2 = null;
+
+                    try
+                    {
+                        m = ((ITypeDefOrRef)ins.Operand).ResolveTypeDef();
+                    }
+                    catch (Exception)
+                    {
+                        m2 = ((IMethod)ins.Operand).ResolveMethodDef();
+                    }
+
+                    if (m != null)
+                    {
+                        if (m.MDToken.Equals(operatingMethod.MDToken))
+                        {
+                            if (Utils.checkBR(opCodes[i - 1]))
+                            {
+                                if (opCodes[i - 2].OpCode == OpCodes.Ldc_I4_1 && opCodes[i + 1].OpCode == OpCodes.Pop)
+                                {
+                                    ldtokenJunkStartIndices.AddRange(new int[] { i - 2, i - 1, i, i + 1 });
+                                }
+                            }
+                        }
+                    }
+                    else
+                    {
+                        if (m2 != null)
+                        {
+                            if (m2.MDToken.Equals(operatingMethod.MDToken))
+                            {
+                                if (Utils.checkBR(opCodes[i - 1]))
+                                {
+                                    if (opCodes[i - 2].OpCode == OpCodes.Ldc_I4_1 && opCodes[i + 1].OpCode == OpCodes.Pop)
+                                    {
+                                        ldtokenJunkStartIndices.AddRange(new int[] { i - 2, i - 1, i, i + 1 });
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if (ins.OpCode == OpCodes.Call && i > 0)
+                {
+                    if (opCodes[i - 1].OpCode == OpCodes.Ldtoken)
+                    {
+                        RuntimeHelpers_InitializeArray_JunkIndices.AddRange(new int[] { i - 1, i });
+                    }
+                }
+
+            }
+            foreach (int idx in switchJunkStartIndices)
+            {
+                opCodes[idx].OpCode = OpCodes.Nop;
+            }
+
+            foreach (int idx in ldtokenJunkStartIndices)
+            {
+                opCodes[idx].OpCode = OpCodes.Nop;
+            }
+
+            foreach (int idx in RuntimeHelpers_InitializeArray_JunkIndices)
+            {
+                opCodes[idx].OpCode = OpCodes.Nop;
+            }
+
+            uint offset = 0;
+            for (int H = 0; H < opCodes.Length; H++)
+            {
+                opCodes[H].Offset = offset;
+
+                offset += (uint)opCodes[H].GetSize();
+            }
+
+            return opCodes;
+        }
+
+        private MethodDef findFormInit(TypeDef frmType)
+        {
+            MethodDef constr = frmType.FindDefaultConstructor();
+
+            if (constr == null)
+            {
+                IEnumerable<MethodDef> defs = (IEnumerable<MethodDef>)frmType.FindConstructors();
+
+                if (defs.Count() > 0)
+                {
+                    constr = defs.ToArray()[0];
+                }
+            }
+
+            Instruction[] opCodes = constr.Body.Instructions.ToArray();
+
+            for (int i = 0; i < opCodes.Length; i++)
+            {
+                if (opCodes[i].OpCode == OpCodes.Call)
+                {
+                    IMethodDefOrRef me = (IMethodDefOrRef)opCodes[i].Operand;
+
+                    if (me.DeclaringType.FullName == frmType.FullName)
+                    {
+                        me.Name = "InitializeComponent";
+                        return me.ResolveMethodDef();
+                    }
+                }
+            }
+
+            return null;
+        }
+
+        private void fixFormEventMethods(TypeDef frmType)
+        {
+            MethodDef frmInit = findFormInit(frmType);
+
+            Instruction[] opCodes = frmInit.Body.Instructions.ToArray();
+
+            for (int i = 0; i < opCodes.Length; i++)
+            {
+                if (opCodes[i].OpCode == OpCodes.Ldftn)
+                {
+                    if (opCodes[i - 2].OpCode == OpCodes.Ldfld)
+                    {
+                        if (opCodes[i + 2].OpCode == OpCodes.Callvirt)
+                        {
+                            //Debugger.Break();
+                            IField fld = (IField)opCodes[i - 2].Operand;
+                            IMethodDefOrRef eventAddMethod = ((IMethodDefOrRef)opCodes[i + 2].Operand).ResolveMethodDef();
+                            IMethodDefOrRef eventMethod = ((IMethodDefOrRef)opCodes[i].Operand).ResolveMethodDef();
+                            string eventAddName = eventAddMethod.Name.Replace("add_", "");
+                            string eventName = eventMethod.Name;
+                            string fldName = fld.Name;
+
+                            eventMethod.Name = fldName + "_" + eventAddName;
+                        }
+                    }
+                }
+            }
+
+        }
 
         public void Patch()
         {
             FindStringDecs(asm);
             FindConstantsDecs(asm);
 
-            if (checkDecsFound() == false) return;
+            //if (checkDecsFound() == false) return;
 
             List<TypeDef> alltypes = asm.GetTypes().ToList();
             List<TypeDef> types = new List<TypeDef>();
 
+            Type delegateBaseType = typeof(System.MulticastDelegate);
+            Type formBaseType = typeof(System.Windows.Forms.Form);
+            Type controlBaseType = typeof(System.Windows.Forms.Control);
+            ModuleDefMD m = ModuleDefMD.Load(delegateBaseType.Module);
+            ModuleDefMD winformModule = ModuleDefMD.Load(formBaseType.Module);
+            ITypeDefOrRef MulticastDelegateType = Utils.reflectionType_To_dnType(delegateBaseType, m, m.Context);
+            ITypeDefOrRef formBaseTypeRef = Utils.reflectionType_To_dnType(formBaseType, winformModule, winformModule.Context);
+            ITypeDefOrRef controlBaseTypeRef = Utils.reflectionType_To_dnType(controlBaseType, winformModule, winformModule.Context);
+
+            /*Stopwatch sw = Stopwatch.StartNew();
+            List<MethodDef> removedMethods = new List<MethodDef>();
             foreach (var type in alltypes)
             {
+                List<MethodDef> typeMethods = Utils.getAllMethodsFromType(type);
+
+               foreach (MethodDef method in typeMethods)
+               {
+                    if (method != null)
+                    {
+                        IList<MethodDef> MethodsUsed = null;
+                        try
+                        {
+                            MethodsUsed  = Utils.getMethodReferences(alltypes, method);
+                        }
+                        catch (Exception)
+                        {
+                            Debugger.Break();
+                        }
+                        
+                        if (MethodsUsed != null)
+                        {
+                            if (MethodsUsed.Count == 0)
+                            {
+                                removedMethods.Add(method);
+                                type.Remove(method);
+                            }
+                        }
+                        
+                    }
+               }
+            }
+
+            sw.Stop();
+
+
+            List<string> strs = new List<string>();
+            strs.Add("Time taken to find removed methods: " + sw.ElapsedMilliseconds.ToString() + "ms");
+            foreach (MethodDef mb in removedMethods)
+            {
+                strs.Add(mb.FullName);
+            }
+            Debugger.Break();*/
+
+
+            foreach (var type in alltypes)
+            {
+                if (type.BaseType != null)
+                {
+                    if (type.BaseType.FullName == MulticastDelegateType.FullName)
+                    {
+                        this.asm.Types.Remove(type);
+                        continue;
+                    }
+
+                    if (type.BaseType.FullName == formBaseTypeRef.FullName && this.FixFormControlNames == true)
+                    {
+                        Type reflectionFormType = this.exeASM.GetType(type.ReflectionFullName);
+
+                        //if (reflectionFormType.Name == "MainForm") Debugger.Break();
+
+                        object frm = null;
+                        try
+                        {
+                            frm = Activator.CreateInstance(reflectionFormType);
+                        }
+                        catch (Exception ex)
+                        {
+                            if (ex.Message == "No parameterless constructor defined for this object.")
+                            {
+                                frm = Activator.CreateInstance(reflectionFormType, new object[] { null });
+                            }
+                        }
+
+                        if (frm != null)
+                        {
+                            MethodDef frmInit = findFormInit(type);
+
+                            //object frm = reflectionFormType.Assembly.CreateInstance(reflectionFormType.FullName);
+
+                            Type frmTP = frm.GetType();
+                            FieldInfo[] infs = frmTP.GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+
+                            Dictionary<string, string> conversionMap = new Dictionary<string, string>();
+
+
+                            foreach (var reField in infs)
+                            {
+                                if (isControlField(reField))
+                                {
+                                    Control ctrl = null;
+
+                                    try
+                                    {
+                                        ctrl = (Control)reField.GetValue(frm);
+                                    }
+
+                                    catch (Exception ex)
+                                    {
+
+                                    }
+
+                                    if (ctrl != null) conversionMap.Add(reField.Name, ctrl.Name);
+                                }
+
+                                if (isToolStripItem(reField))
+                                {
+                                    ToolStripItem item = null;
+
+                                    try
+                                    {
+                                        item = (ToolStripItem)reField.GetValue(frm);
+                                    }
+
+                                    catch (Exception ex)
+                                    {
+
+                                    }
+
+                                    if (item != null) conversionMap.Add(reField.Name, item.Name);
+                                }
+                            }
+
+
+                            foreach (var field in type.Fields)
+                            {
+                                if (conversionMap.ContainsKey(field.Name) == true)
+                                {
+                                    field.Name = conversionMap[field.Name];
+                                }
+                            }
+
+                            fixFormEventMethods(type);
+                        }
+                    }
+                }
+
                 if (type.NestedTypes.Count > 0)
                 {
                     foreach (var Ntype in type.NestedTypes)
@@ -331,6 +820,8 @@ namespace CryptoDeobber
                 }
             }*/
 
+            List<TypeDef> shitToRemove = new List<TypeDef>();
+
             // Type level search
             foreach (TypeDef t in types)
             {
@@ -338,6 +829,11 @@ namespace CryptoDeobber
                                {
                                    if (t.Namespace.ToString() != "SamuelTool") continue;
                                }*/
+
+/*                if (t.Name == "MainForm")
+                {
+                    Debugger.Break();
+                }*/
 
                 List<MethodDef> methods = Utils.getAllMethodsFromType(t);
 
@@ -348,68 +844,121 @@ namespace CryptoDeobber
                     Target tar = null;
                     bool patchingNeeded = false;
 
-                    try
+                    /*                    try
+                                        {*/
+                    MethodDef patchingTargetMethod = methods[c];
+
+                    if (t.Name == "MainForm" && c == 231)
                     {
-                        MethodDef patchingTargetMethod = methods[c];
-                        tar = new Target(patchingTargetMethod);
+                        //Debugger.Break();
+                    }
 
-                        if (patchingTargetMethod.HasBody)
+                    tar = new Target(patchingTargetMethod);
+
+                    if (patchingTargetMethod.HasBody)
+                    {
+                        if (patchingTargetMethod.Body.HasVariables)
                         {
-                            if (patchingTargetMethod.Body.HasVariables)
-                            {
-                                tar.Locals = patchingTargetMethod.Body.Variables.Locals.ToArray();
-                            }
+                            tar.Locals = patchingTargetMethod.Body.Variables.Locals.ToArray();
+                        }
+                    }
+
+                    tar.ReturnType = patchingTargetMethod.ReturnType.ReflectionFullName;
+
+                    if (patchingTargetMethod.ParamDefs.Count > 0)
+                    {
+                        tar.ParameterDefs = patchingTargetMethod.ParamDefs.ToArray();
+                    }
+
+                    if (patchingTargetMethod.Parameters.Count > 1)
+                    {
+                        List<string> result = new List<string>();
+                        for (int i = 0; i < patchingTargetMethod.Parameters.Count; i++)
+                        {
+                            result.Add(patchingTargetMethod.Parameters[i].Type.TypeName);
                         }
 
-                        tar.ReturnType = patchingTargetMethod.ReturnType.ReflectionFullName;
-
-                        if (patchingTargetMethod.ParamDefs.Count > 0)
-                        {
-                            tar.ParameterDefs = patchingTargetMethod.ParamDefs.ToArray();
-                        }
-
-                        if (patchingTargetMethod.Parameters.Count > 1)
-                        {
-                            List<string> result = new List<string>();
-                            for (int i = 0; i < patchingTargetMethod.Parameters.Count; i++)
-                            {
-                                result.Add(patchingTargetMethod.Parameters[i].Type.TypeName);
-                            }
-
-                            tar.Parameters = result.ToArray();
-                        }
-                        else if (patchingTargetMethod.Parameters.Count == 1)
-                        {
-                            tar.Parameters = new List<string>
+                        tar.Parameters = result.ToArray();
+                    }
+                    else if (patchingTargetMethod.Parameters.Count == 1)
+                    {
+                        tar.Parameters = new List<string>
                         {
                             patchingTargetMethod.Parameters[0].Type.TypeName
                         }.ToArray();
-                        }
-
-                        tar.Namespace = patchingTargetMethod.DeclaringType.Namespace;
-
-                        if (tar.Namespace == "")
-                        {
-                            continue;
-                        }
-
-                        tar.Class = patchingTargetMethod.DeclaringType.Name;
-                        tar.Method = patchingTargetMethod.Name;
-
-                        opCodes = Utils.getInstructions(patchingTargetMethod);
-
-                        if (opCodes == null) continue;
                     }
-                    catch (Exception)
+
+                    tar.Namespace = patchingTargetMethod.DeclaringType.Namespace;
+
+/*                    if (tar.Namespace == "")
                     {
-                        Debugger.Break();
+                        continue;
+                    }*/
+
+                    tar.Class = patchingTargetMethod.DeclaringType.Name;
+                    tar.Method = patchingTargetMethod.Name;
+
+                    
+
+                    opCodes = Utils.getInstructions(patchingTargetMethod);
+
+                    if (opCodes == null) continue;
+
+                    if (this.RemoveJunkCode == true)
+                    {
+                        opCodes = removeJunkCode(opCodes, patchingTargetMethod);
                     }
+                    
+
+                    /*                   }
+                                       catch (Exception)
+                                       {
+                                           Debugger.Break();
+                                       }*/
                     // Instruction level search
                     for (int x = 0; x < opCodes.Length; x++)
                     {
                         Instruction ins = opCodes[x];
 
                         if (ins.OpCode.Code == Code.Nop) continue;
+
+                        if (ins.OpCode.Code == Code.Call)
+                        {
+                            IMethod me = (IMethod)opCodes[x].Operand;
+                            MethodDef mm = me.ResolveMethodDef();
+                            if (mm != null)
+                            {
+                                if (mm.ReturnType.FullName != typeof(void).FullName && mm.Body != null && mm.Module.FullName == t.Module.FullName)
+                                {
+                                    Instruction[] instrs = mm.Body.Instructions.ToArray();
+
+                                    //if (mm.DeclaringType.Name == "Class_207") Debugger.Break();
+
+                                    if (instrs.Length == 3)
+                                    {
+                                        opCodes[x] = instrs[1].Clone();
+
+                                        if (shitToRemove.Contains(mm.DeclaringType) == false)
+                                        {
+                                            shitToRemove.Add(mm.DeclaringType);
+                                            //this.asm.Types.Remove(mm.DeclaringType);
+                                        }
+                                            continue;
+                                    }
+
+                                    if (instrs.Length == 4)
+                                    {
+                                        opCodes[x] = instrs[2].Clone();
+                                        if (shitToRemove.Contains(mm.DeclaringType) == false)
+                                        {
+                                            shitToRemove.Add(mm.DeclaringType);
+                                            //this.asm.Types.Remove(mm.DeclaringType);
+                                        }
+                                            continue;
+                                    }
+                                }
+                            }
+                        }
 
                         int decCode = 0;
                         Instruction ins2 = null;
@@ -438,13 +987,14 @@ namespace CryptoDeobber
                                     {
                                         case "System.String":
                                             {
-                                                try
-                                                {
+/*                                                try
+                                                {*/
+                                                    if (decsStringsSig == null) continue;
                                                     if (decsStringsSig.Equals(new MethodSignature(obbingCall)) == true && Utils.typesEqual(obbingCall.DeclaringType, decsStringsMethod.DeclaringType) == true)
                                                     {
                                                         patchingNeeded = true;
                                                         object deObedValue = Utils.decryptValue((MethodDef)ins2.Operand,
-                                                            decCode);
+                                                            decCode, exeASM);
                                                         string val = (string)deObedValue;
 
                                                         int[] brRefs = Utils.checkForBRref(opCodes, opCodes[x]);
@@ -473,22 +1023,23 @@ namespace CryptoDeobber
                                                         x = x + 1;
                                                         continue;
                                                     }
-                                                }
+ /*                                               }
                                                 catch (Exception)
                                                 {
                                                     Debugger.Break();
-                                                }
+                                                }*/
                                                 break;
                                             }
                                         case "System.Int32":
                                             {
                                                 try
                                                 {
+                                                    if (decsIntSig == null) continue;
                                                     if (decsIntSig.Equals(new MethodSignature(obbingCall)) == true && Utils.typesEqual(obbingCall.DeclaringType, decsIntMethod.DeclaringType) == true)
                                                     {
                                                         patchingNeeded = true;
                                                         object deObedValue = Utils.decryptValue((MethodDef)ins2.Operand,
-                                                            decCode);
+                                                            decCode, exeASM);
                                                         int val = (int)deObedValue;
 
                                                         int[] brRefs = Utils.checkForBRref(opCodes, opCodes[x]);
@@ -539,11 +1090,12 @@ namespace CryptoDeobber
                                             {
                                                 try
                                                 {
+                                                    if (decsLongSig == null) continue;
                                                     if (decsLongSig.Equals(new MethodSignature(obbingCall)) == true && Utils.typesEqual(obbingCall.DeclaringType, decsLongMethod.DeclaringType) == true)
                                                     {
                                                         patchingNeeded = true;
                                                         object deObedValue = Utils.decryptValue((MethodDef)ins2.Operand,
-                                                            decCode);
+                                                            decCode, exeASM);
                                                         long val = (long)deObedValue;
 
                                                         int[] brRefs = Utils.checkForBRref(opCodes, opCodes[x]);
@@ -583,11 +1135,12 @@ namespace CryptoDeobber
                                             {
                                                 try
                                                 {
+                                                    if (decsFloatSig == null) continue;
                                                     if (decsFloatSig.Equals(new MethodSignature(obbingCall)) == true && Utils.typesEqual(obbingCall.DeclaringType, decsFloatMethod.DeclaringType) == true)
                                                     {
                                                         patchingNeeded = true;
                                                         object deObedValue = Utils.decryptValue((MethodDef)ins2.Operand,
-                                                            decCode);
+                                                            decCode, exeASM);
                                                         float val = (float)deObedValue;
 
                                                         int[] brRefs = Utils.checkForBRref(opCodes, opCodes[x]);
@@ -627,11 +1180,12 @@ namespace CryptoDeobber
                                             {
                                                 try
                                                 {
+                                                    if (decsDoubleSig == null) continue;
                                                     if (decsDoubleSig.Equals(new MethodSignature(obbingCall)) == true && Utils.typesEqual(obbingCall.DeclaringType, decsDoubleMethod.DeclaringType) == true)
                                                     {
                                                         patchingNeeded = true;
                                                         object deObedValue = Utils.decryptValue((MethodDef)ins2.Operand,
-                                                            decCode);
+                                                            decCode, exeASM);
                                                         double val = (double)deObedValue;
 
                                                         int[] brRefs = Utils.checkForBRref(opCodes, opCodes[x]);
@@ -696,18 +1250,21 @@ namespace CryptoDeobber
                 // Type level search
             }
 
+            
+
             if (patchedTargets.Count > 0)
             {
                 this.dnPatcher.Patch(patchedTargets.ToArray());
 
-                try
+/*                if (shitToRemove.Count > 0)
                 {
-                    this.dnPatcher.Save(this.fileLoc);
-                }
-                catch (Exception)
-                {
-                    Debugger.Break();
-                }
+                    foreach (TypeDef t in shitToRemove)
+                    {
+                        if (t.Name != "Class_207") this.asm.Types.Remove(t);
+                    }
+                }*/
+
+                this.dnPatcher.Save(this.fileLoc);
             }
 
             //this.dnPatcher.Save( exeASM.Location.Replace(".exe", ".cleaned.exe"));

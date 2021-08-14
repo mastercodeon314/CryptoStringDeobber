@@ -8,94 +8,92 @@ using System.Reflection;
 using dnpatch;
 using dnlib.DotNet;
 using dnlib.DotNet.Emit;
-using System.Collections.Concurrent;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 using MethodAttributes = dnlib.DotNet.MethodAttributes;
+using System.Collections.Concurrent;
+using System.Threading.Tasks;
 
 namespace CryptoDeobber
 {
     public class Utils
     {
-        private static IList<MethodDef> getMethodReferences(IList<TypeDef> types, MethodDef refMethod)
+        public static IList<MethodDef> getMethodReferences(IList<TypeDef> types, MethodDef refMethod)
         {
             ConcurrentBag<MethodDef> methodsReferenced = new ConcurrentBag<MethodDef>();
             MethodSignature refMethodSig = new MethodSignature(refMethod);
             Parallel.ForEach(types, type =>
             {
-                //
-                List<MethodDef> typeMethods = getAllMethodsFromType(type);
-
-                foreach (MethodDef m in typeMethods)
+                try
                 {
-                    Instruction[] code = m.Body.Instructions.ToArray();
 
-                    for (int i = 0; i < code.Length; i++)
+                    //
+                    List<MethodDef> typeMethods = getAllMethodsFromType(type);
+
+                    foreach (MethodDef m in typeMethods)
                     {
-                        if (code[i].OpCode == OpCodes.Call || code[i].OpCode == OpCodes.Callvirt || code[i].OpCode == OpCodes.Calli)
+                        if (m.Body != null)
                         {
-                            IMethodDefOrRef opp = null;
-/*                            IMemberDef oppM = null;
-                            IMemberRef oppR = null;*/
-
-/*                            try
-                            {*/
-                                opp = (IMethodDefOrRef)code[i].Operand;
-/*                            }
-                            catch (Exception)
+                            if (m.Body.Instructions != null)
                             {
+                                Instruction[] code = m.Body.Instructions.ToArray();
 
-                            }*/
-
-                            if (opp != null)
-                            {
-                                MethodDef r = opp.ResolveMethodDef();
-                                MethodSignature rSig = new MethodSignature(r);
-
-                                if (rSig.Equals(refMethodSig) == true)
+                                for (int i = 0; i < code.Length; i++)
                                 {
-                                    methodsReferenced.Add(m);
-                                    break;
+                                    if (code[i].OpCode == OpCodes.Call || code[i].OpCode == OpCodes.Callvirt || code[i].OpCode == OpCodes.Calli)
+                                    {
+                                        var opp = (IMethod)code[i].Operand; ;
+                                        /*                            IMemberDef oppM = null;
+                                                                    IMemberRef oppR = null;*/
+
+                                        /*                            try
+                                                                    {*/
+                                        /*                            }
+                                                                    catch (Exception)
+                                                                    {
+
+                                                                    }*/
+
+                                        if (opp != null)
+                                        {
+                                            MethodDef r = opp.ResolveMethodDef();
+
+                                            if (r != null)
+                                            {
+                                                MethodSignature rSig = new MethodSignature(r);
+
+                                                try
+                                                {
+                                                    if (rSig.Equals(refMethodSig) == true)
+                                                    {
+                                                        methodsReferenced.Add(m);
+                                                        break;
+                                                    }
+                                                }
+                                                catch (Exception ex)
+                                                {
+                                                    Debugger.Break();
+                                                }
+                                            }
+
+                                        }
+                                    }
                                 }
                             }
-                            
                         }
                     }
 
+                    /*if (IsPrime(number))
+                    {
+                        primeNumbers.Add(number);
+                    }*/
                 }
-
-                /*if (IsPrime(number))
+                catch (Exception)
                 {
-                    primeNumbers.Add(number);
-                }*/
+                    Debugger.Break();
+                }
             });
 
             return methodsReferenced.ToList();
-        }
-
-        // gets all methods from a given type, excluding nested types
-        public static List<MethodDef> getMethodsFromType(TypeDef typeDef)
-        {
-            List<MethodDef> methods = typeDef.FindConstructors().ToList();
-            methods.AddRange(typeDef.Methods.ToList());
-
-            MethodDef staticConst = null;
-            try
-            {
-                staticConst = typeDef.FindStaticConstructor();
-            }
-            catch (Exception)
-            {
-                //Console.WriteLine(e);
-                staticConst = null;
-            }
-
-            if (staticConst != null)
-            {
-                methods.Add(staticConst);
-            }
-
-            return methods;
         }
 
         public static bool isConstructorCall(MethodDef delegateClassStaticConstructor)
@@ -654,8 +652,8 @@ namespace CryptoDeobber
             return null;
         }
 
-        // Gets all methods from a given type, including nested types
-        public static List<MethodDef> getAllMethodsFromType(TypeDef typeDef)
+
+        public static List<MethodDef> getMethodsFromType(TypeDef typeDef)
         {
             List<MethodDef> methods = typeDef.FindConstructors().ToList();
             methods.AddRange(typeDef.Methods.ToList());
@@ -674,6 +672,31 @@ namespace CryptoDeobber
             if (staticConst != null)
             {
                 methods.Add(staticConst);
+            }
+
+            return methods;
+        }
+
+        public static List<MethodDef> getAllMethodsFromType(TypeDef typeDef)
+        {
+
+            IList<TypeDef> nestedTypes = null;
+            
+            if (typeDef.HasNestedTypes == true)
+            {
+                nestedTypes = typeDef.NestedTypes;
+            }
+            
+
+            List<MethodDef> methods = getMethodsFromType(typeDef);
+
+
+            if (nestedTypes != null)
+            {
+                foreach (TypeDef nestedType in nestedTypes)
+                {
+                    methods.AddRange(getMethodsFromType(nestedType).ToArray());
+                }
             }
 
             return methods;
@@ -732,10 +755,9 @@ namespace CryptoDeobber
         }
 
 
-        public static object decryptValue(MethodDef decryptMethod, int dataIndex)
+        public static object decryptValue(MethodDef decryptMethod, int dataIndex, Assembly asm)
         {
-            System.Type tp = System.Reflection.Assembly.GetExecutingAssembly()
-                .GetType(decryptMethod.DeclaringType.FullName);
+            Type tp = asm.GetType(decryptMethod.DeclaringType.FullName);
             object inst = Activator.CreateInstance(tp);
             MethodInfo[] infs = tp.GetMethods(BindingFlags.Static | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Public | BindingFlags.Default);
 
